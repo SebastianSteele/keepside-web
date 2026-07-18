@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.local
+*.log
+coverage
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Optional commercial font files stay local unless redistribution rights are confirmed.
+public/fonts/LutoriaSerif-*.woff2

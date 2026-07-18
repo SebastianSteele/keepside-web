@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Keepside mark</title>
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="8" x2="0" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset=".25" stop-color="#f8faf7"/><stop offset=".47" stop-color="#c8cecd"/><stop offset=".64" stop-color="#fff"/><stop offset="1" stop-color="#dce1df"/></linearGradient>
+    <linearGradient id="highlight" x1="15" y1="10" x2="39" y2="43" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".5" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <filter id="shadow" x="-35%" y="-35%" width="175%" height="180%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.7" flood-color="#000" flood-opacity=".28"/></filter>
+  </defs>
+  <path d="M20 13v38M23 34 43 14M24 34l21 17" fill="none" stroke="#636a6c" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" opacity=".82"/>
+  <path d="M20 13v38M23 34 43 14M24 34l21 17" fill="none" stroke="url(#chrome)" stroke-width="9.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)"/>
+  <path d="M18.5 14v18M26 30.5l13-13M28 37l12 10" fill="none" stroke="url(#highlight)" stroke-width="1.8" stroke-linecap="round" opacity=".88"/>
+</svg>
