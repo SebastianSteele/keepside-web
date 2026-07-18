@@ -13,10 +13,13 @@ import {
   WorkspaceTheme,
 } from './types'
 
-const DAY = 86_400_000
-
 export function createSampleWorkspace(now = new Date()): WorkspaceData {
-  const at = (days: number, hours = 0) => new Date(now.getTime() + days * DAY + hours * 3_600_000).toISOString()
+  const at = (days: number, hour = 12) => {
+    const value = new Date(now)
+    value.setDate(value.getDate() + days)
+    value.setHours(hour, 0, 0, 0)
+    return value.toISOString()
+  }
   const createdAt = at(-150)
 
   return {
@@ -158,7 +161,7 @@ export function createSampleWorkspace(now = new Date()): WorkspaceData {
       {
         id: 'work-studio-invoice',
         clientId: 'client-studio',
-        title: 'Send February project invoice',
+        title: 'Send final project invoice',
         type: WorkItemType.Task,
         status: WorkItemStatus.Completed,
         priority: WorkItemPriority.Normal,
@@ -285,16 +288,31 @@ export function createSampleWorkspace(now = new Date()): WorkspaceData {
         createdAt: at(-2),
         updatedAt: at(-2),
       },
+      {
+        id: 'email-studio-review-draft',
+        clientId: 'client-studio',
+        contactId: 'contact-nora',
+        direction: EmailDirection.Outgoing,
+        status: EmailStatus.Draft,
+        from: 'jordan@example.com',
+        to: ['nora@willowandpine.example'],
+        cc: [],
+        subject: 'A few details before our review',
+        body: 'Hi Nora,\n\nI have the final copy and photography notes ready for our review. Could you bring the latest print estimate so we can settle quantities together?\n\nThanks,\nJordan',
+        occurredAt: at(0),
+        createdAt: at(0),
+        updatedAt: at(0),
+      },
     ],
     activities: [
       {
-        id: 'activity-studio-email',
-        clientId: 'client-studio',
+        id: 'activity-consultant-email',
+        clientId: 'client-consultant',
         entityType: ActivityEntityType.Email,
-        entityId: 'email-studio-copy',
-        type: ActivityType.EmailReceived,
-        summary: 'Received revised welcome guide copy from Nora Bennett',
-        occurredAt: at(-3),
+        entityId: 'email-consultant-proposal',
+        type: ActivityType.EmailSent,
+        summary: 'Sent retreat proposal outline to Elena Marquez',
+        occurredAt: at(-1),
       },
       {
         id: 'activity-home-meeting',
@@ -315,13 +333,13 @@ export function createSampleWorkspace(now = new Date()): WorkspaceData {
         occurredAt: at(-2),
       },
       {
-        id: 'activity-consultant-email',
-        clientId: 'client-consultant',
+        id: 'activity-studio-email',
+        clientId: 'client-studio',
         entityType: ActivityEntityType.Email,
-        entityId: 'email-consultant-proposal',
-        type: ActivityType.EmailSent,
-        summary: 'Sent retreat proposal outline to Elena Marquez',
-        occurredAt: at(-1),
+        entityId: 'email-studio-copy',
+        type: ActivityType.EmailReceived,
+        summary: 'Received revised welcome guide copy from Nora Bennett',
+        occurredAt: at(-3),
       },
       {
         id: 'activity-studio-work',
@@ -329,7 +347,7 @@ export function createSampleWorkspace(now = new Date()): WorkspaceData {
         entityType: ActivityEntityType.WorkItem,
         entityId: 'work-studio-invoice',
         type: ActivityType.WorkCompleted,
-        summary: 'Completed February project invoice',
+        summary: 'Completed final project invoice',
         occurredAt: at(-8),
       },
     ],

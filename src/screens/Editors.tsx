@@ -20,6 +20,7 @@ import {
   WorkspaceSettings,
 } from '../domain/types'
 import { exportWorkspace, isValidLocale } from '../domain/workspace'
+import { ConnectedError, type MailRelayClient } from '../infrastructure/serverClients'
 import type { RecordKind } from './Screens'
 
 export type EditableRecord = Client | Contact | WorkItem | Meeting | Note | Email
@@ -28,6 +29,7 @@ export type EditorTarget = { kind: RecordKind; record?: EditableRecord; clientId
 interface EditorProps {
   target: EditorTarget
   workspace: WorkspaceData
+  mailRelay?: MailRelayClient
   onClose: () => void
   onSave: (kind: RecordKind, record: EditableRecord) => void
   onDelete: (kind: RecordKind, id: string) => void
@@ -39,8 +41,8 @@ const now = () => new Date().toISOString()
 const inputDate = (value?: string) => value ? new Date(value).toISOString().slice(0, 16) : ''
 const isoDate = (value: string) => value ? new Date(value).toISOString() : undefined
 
-function Actions({ existing, onClose, onDelete, submit = 'Save record', extra }: { existing: boolean; onClose: () => void; onDelete: () => void; submit?: string; extra?: React.ReactNode }) {
-  return <div className="form__actions">{existing && <button type="button" className="button button--danger delete-action" onClick={onDelete}><Icon name="trash" />Delete</button>}<span className="form__spacer" />{extra}<button type="button" className="button" onClick={onClose}>Cancel</button><button type="submit" className="button button--primary">{submit}</button></div>
+function Actions({ existing, onClose, onDelete, submit = 'Save record', extra, disabled = false }: { existing: boolean; onClose: () => void; onDelete: () => void; submit?: string; extra?: React.ReactNode; disabled?: boolean }) {
+  return <div className="form__actions">{existing && <button type="button" disabled={disabled} className="button button--danger delete-action" onClick={onDelete}><Icon name="trash" />Delete</button>}<span className="form__spacer" />{extra}<button type="button" disabled={disabled} className="button" onClick={onClose}>Cancel</button><button type="submit" disabled={disabled} className="button button--primary">{submit}</button></div>
 }
 
 export function RecordEditor(props: EditorProps) {
@@ -146,15 +148,30 @@ function NoteEditor({ record, target, workspace, onClose, onSave, onDelete }: Ed
   </div><Actions existing={!!record} onClose={onClose} onDelete={() => confirmDelete('note', draft.id, onDelete)} /></form></Modal>
 }
 
-function EmailEditor({ record, target, workspace, onClose, onSave, onDelete }: EditorProps & { record?: Email }) {
+function EmailEditor({ record, target, workspace, mailRelay, onClose, onSave, onDelete }: EditorProps & { record?: Email }) {
   const stamp = now()
+  const formRef = useRef<HTMLFormElement>(null)
   const initialClient = target.clientId ?? workspace.clients[0]?.id ?? ''
   const client = workspace.clients.find(({ id: clientId }) => clientId === initialClient)
   const contact = workspace.contacts.find(({ clientId, isPrimary }) => clientId === initialClient && isPrimary)
   const [draft, setDraft] = useState<Email>(record ?? { id: id(), clientId: initialClient, contactId: contact?.id, direction: EmailDirection.Outgoing, status: EmailStatus.Draft, from: '', to: contact?.email ? [contact.email] : client?.email ? [client.email] : [], cc: [], subject: '', body: '', occurredAt: stamp, createdAt: stamp, updatedAt: stamp })
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const set = <K extends keyof Email>(key: K, value: Email[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const contacts = workspace.contacts.filter(({ clientId }) => clientId === draft.clientId)
   const statuses = draft.direction === EmailDirection.Outgoing ? [EmailStatus.Draft, EmailStatus.Sent, EmailStatus.Archived] : [EmailStatus.Received, EmailStatus.Archived]
+  const changeClient = (clientId: string) => {
+    const nextContact = workspace.contacts.find(({ clientId: ownerId, isPrimary }) => ownerId === clientId && isPrimary)
+    const nextClient = workspace.clients.find(({ id: candidateId }) => candidateId === clientId)
+    const recipient = nextContact?.email ?? nextClient?.email
+    setDraft((current) => ({
+      ...current,
+      clientId,
+      contactId: nextContact?.id,
+      to: current.direction === EmailDirection.Outgoing ? recipient ? [recipient] : [] : current.to,
+      cc: current.direction === EmailDirection.Outgoing ? [] : current.cc,
+    }))
+  }
   const save = (openMail: boolean) => {
     const email = { ...draft, status: openMail ? EmailStatus.Draft : draft.status, occurredAt: draft.occurredAt || stamp }
     onSave('email', email)
@@ -164,12 +181,28 @@ function EmailEditor({ record, target, workspace, onClose, onSave, onDelete }: E
       window.location.href = `mailto:${email.to.join(',')}?${params}`
     }
   }
+  const sendThroughRelay = async () => {
+    if (!mailRelay) return
+    setSending(true)
+    setSendError('')
+    try {
+      const receipt = await mailRelay.send(workspace.id, draft)
+      setSending(false)
+      onSave('email', { ...draft, from: receipt.from, status: EmailStatus.Sent, occurredAt: receipt.acceptedAt })
+    } catch (error) {
+      setSending(false)
+      const message = error instanceof ConnectedError ? error.message : 'The relay lost confirmation and this message may have been sent. Check the provider before trying again.'
+      setSendError(`${message} Keepside left the record as a draft.`)
+    }
+  }
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
-    save(submitter?.value === 'open-mail')
+    save(false)
   }
-  return <Modal title={record ? 'Edit mail record' : 'Write or log email'} subtitle="Sending opens your default mail app. Keepside stores the relationship record locally." onClose={onClose} wide><form className="form email-editor" onSubmit={submit}><div className="form-grid">
+  const canSend = draft.direction === EmailDirection.Outgoing && draft.status === EmailStatus.Draft
+  const relayAction = mailRelay && canSend ? <button type="button" onClick={() => formRef.current?.reportValidity() && void sendThroughRelay()} disabled={sending} className="button"><Icon name="send" />{sending ? 'Sending…' : 'Send through relay'}</button> : undefined
+  const mailAction = canSend ? <button type="button" onClick={() => formRef.current?.reportValidity() && save(true)} disabled={sending} className="button">Open in Mail</button> : undefined
+  return <Modal title={record ? 'Edit mail record' : 'Write or log email'} subtitle={mailRelay ? 'Send through your configured relay or keep this message as a draft.' : 'Open the message in your default mail app or keep it as a draft.'} onClose={onClose} dismissible={!sending} wide><form ref={formRef} className="form email-editor" aria-busy={sending} onSubmit={submit}><fieldset className="form-grid" disabled={sending}>
     <Field label="To" span><input required autoFocus value={draft.to.join(', ')} onChange={(event) => set('to', event.target.value.split(',').map((value) => value.trim()).filter(Boolean))} placeholder="client@example.com" /></Field>
     <Field label="CC" span><input value={draft.cc.join(', ')} onChange={(event) => set('cc', event.target.value.split(',').map((value) => value.trim()).filter(Boolean))} /></Field>
     <Field label="Subject" span><input required value={draft.subject} onChange={(event) => set('subject', event.target.value)} /></Field>
@@ -177,11 +210,12 @@ function EmailEditor({ record, target, workspace, onClose, onSave, onDelete }: E
     <p className="form__section email-editor__details">Record details</p>
     <Field label="Direction"><select value={draft.direction} onChange={(event) => { const direction = event.target.value as EmailDirection; setDraft((current) => ({ ...current, direction, status: direction === EmailDirection.Outgoing ? EmailStatus.Draft : EmailStatus.Received })) }}>{Object.values(EmailDirection).map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field>
     <Field label="Status"><select value={draft.status} onChange={(event) => set('status', event.target.value as EmailStatus)}>{statuses.map((value) => <option key={value} value={value}>{titleCase(value)}</option>)}</select></Field>
-    <Field label="Client"><ClientPicker workspace={workspace} value={draft.clientId} onChange={(value) => setDraft((current) => ({ ...current, clientId: value, contactId: undefined }))} /></Field>
+    <Field label="Client"><ClientPicker workspace={workspace} value={draft.clientId} onChange={changeClient} /></Field>
     <Field label="Contact"><select value={draft.contactId ?? ''} onChange={(event) => { const chosen = contacts.find(({ id }) => id === event.target.value); setDraft((current) => ({ ...current, contactId: chosen?.id, to: current.direction === EmailDirection.Outgoing && chosen?.email ? [chosen.email] : current.to })) }}><option value="">No contact selected</option>{contacts.map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}</select></Field>
     <Field label="Date"><input required type="datetime-local" value={inputDate(draft.occurredAt)} onChange={(event) => set('occurredAt', isoDate(event.target.value) ?? stamp)} /></Field>
     <Field label="From"><input required type="email" value={draft.from} onChange={(event) => set('from', event.target.value)} placeholder="you@example.com" /></Field>
-  </div><Actions existing={!!record} onClose={onClose} onDelete={() => confirmDelete('email record', draft.id, onDelete)} submit={draft.status === EmailStatus.Draft ? 'Save draft' : 'Save record'} extra={!record && draft.direction === EmailDirection.Outgoing ? <button type="submit" name="intent" value="open-mail" className="button"><Icon name="send" />Save draft and open Mail</button> : undefined} /></form></Modal>
+    {sendError && <p className="form-message field--span" role="alert">{sendError}</p>}
+  </fieldset><Actions existing={!!record} disabled={sending} onClose={onClose} onDelete={() => confirmDelete('email record', draft.id, onDelete)} submit={draft.status === EmailStatus.Draft ? 'Save draft' : 'Save record'} extra={<>{relayAction}{mailAction}</>} /></form></Modal>
 }
 
 function confirmDelete(label: string, recordId: string, onDelete: (kind: RecordKind, id: string) => void) {
@@ -219,6 +253,6 @@ export function SettingsEditor({ workspace, onClose, onSettings, onImport, onSam
     <p className="form__section">Workspace data</p>
     <div className="settings-grid field--span"><button type="button" className="settings-action" onClick={download}><Icon name="download" /><span><strong>Export workspace</strong><span>Download every record as one portable JSON file.</span></span></button><button type="button" className="settings-action" onClick={() => fileRef.current?.click()}><Icon name="upload" /><span><strong>Import workspace</strong><span>Replace this browser's workspace from a Keepside file.</span></span></button><input className="file-input" ref={fileRef} type="file" accept="application/json,.json" onChange={(event) => importFile(event.target.files?.[0])} /></div>
     {message && <p className="form-message field--span">{message}</p>}
-    <p className="privacy-note field--span">Your workspace stays in this browser. Keepside has no account system, hosted database, trackers, automations, or background services.</p>
+    <p className="privacy-note field--span">Local mode keeps this workspace in the browser. A configured relay receives a message only when you choose Send through relay.</p>
   </div><div className="danger-zone"><button type="button" className="button" onClick={onSample}>Replace with sample workspace</button><button type="button" className="button button--danger danger-right" onClick={() => window.confirm('Clear every record in this workspace? This cannot be undone.') && onClear()}>Clear workspace</button></div><Actions existing={false} onClose={onClose} onDelete={() => undefined} submit="Save settings" /></form></Modal>
 }

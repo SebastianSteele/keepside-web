@@ -1,0 +1,38 @@
+name: Feature proposal
+description: Suggest a focused improvement to client work
+title: "[Proposal]: "
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach a real workspace export or include client data. Use the sample workspace for examples.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What client-work problem are you trying to solve?
+      description: Describe the real workflow before describing a screen or implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: How do you handle it today?
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Smallest useful change
+      description: Explain the outcome, including what Keepside can leave out.
+    validations:
+      required: true
+  - type: dropdown
+    id: data
+    attributes:
+      label: Does this change stored or transmitted data?
+      options:
+        - No
+        - Yes, local workspace data
+        - Yes, connected-mode data
+        - Not sure
+    validations:
+      required: true

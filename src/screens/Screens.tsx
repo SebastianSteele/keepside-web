@@ -42,6 +42,7 @@ const titleCase = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (
 const initials = (name: string) => name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
 const clientTone = (id: string) => [...id].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % 6
 const clientName = (workspace: WorkspaceData, clientId: string) => workspace.clients.find(({ id }) => id === clientId)?.name ?? 'Unknown client'
+const recordCount = (count: number) => `${count} ${count === 1 ? 'record' : 'records'}`
 const formatDate = (value: string, locale: string, options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) =>
   new Intl.DateTimeFormat(locale, options).format(new Date(value))
 const formatTime = (value: string, locale: string) => new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(new Date(value))
@@ -203,7 +204,7 @@ export function ClientsScreen({ workspace, actions, selectedId, onSelect }: { wo
 
 function ClientDetail({ client, workspace, actions, onBack }: { client: Client; workspace: WorkspaceData; actions: ScreenActions; onBack: () => void }) {
   const contacts = selectContactsForClient(workspace, client.id)
-  const work = selectWorkItemsForClient(workspace, client.id)
+  const work = selectWorkItemsForClient(workspace, client.id).filter(({ status }) => status !== WorkItemStatus.Completed && status !== WorkItemStatus.Canceled)
   const meetings = selectMeetingsForClient(workspace, client.id)
   const notes = selectNotesForClient(workspace, client.id)
   const emails = selectEmailsForClient(workspace, client.id)
@@ -213,13 +214,13 @@ function ClientDetail({ client, workspace, actions, onBack }: { client: Client; 
     <header className="client-detail__head"><span className="monogram">{initials(client.name)}</span><div><h1>{client.name}</h1><p>{client.industry || 'General services'} · {titleCase(client.status)}</p></div><div className="client-detail__actions"><button className="button" onClick={() => actions.edit('client', client)}><Icon name="edit" />Edit</button></div></header>
     <div className="quick-actions"><button className="button button--primary" onClick={() => actions.edit('email', undefined, client.id)}><Icon name="mail" />Write email</button><button className="button" onClick={() => actions.edit('work', undefined, client.id)}><Icon name="plus" />Add task</button><button className="button" onClick={() => actions.edit('meeting', undefined, client.id)}><Icon name="meetings" />Schedule</button><button className="button" onClick={() => actions.edit('note', undefined, client.id)}><Icon name="notes" />Add note</button></div>
     <div className="client-detail__grid"><div>
-      <section className="record-section"><div className="record-section__head"><h2>Open tasks</h2><span>{work.length} records</span></div>{work.slice(0, 6).map((item) => <WorkRow key={item.id} item={item} workspace={workspace} onClick={() => actions.edit('work', item)} />)}{!work.length && <p>No tasks have been recorded for this client.</p>}</section>
-      <section className="record-section"><div className="record-section__head"><h2>Meetings</h2><span>{meetings.length} records</span></div>{meetings.slice(0, 4).map((meeting) => <MeetingRow key={meeting.id} meeting={meeting} workspace={workspace} onClick={() => actions.edit('meeting', meeting)} />)}{!meetings.length && <p>No meetings recorded.</p>}</section>
-      <section className="record-section"><div className="record-section__head"><h2>Notes</h2><span>{notes.length} records</span></div>{notes.slice(0, 4).map((note) => <button className="note-row" key={note.id} onClick={() => actions.edit('note', note)}><strong>{note.title}</strong><span>{note.body}</span></button>)}{!notes.length && <p>No notes recorded.</p>}</section>
+      <section className="record-section"><div className="record-section__head"><h2>Open tasks</h2><span>{recordCount(work.length)}</span></div>{work.slice(0, 6).map((item) => <WorkRow key={item.id} item={item} workspace={workspace} onClick={() => actions.edit('work', item)} />)}{!work.length && <p>No open tasks for this client.</p>}</section>
+      <section className="record-section"><div className="record-section__head"><h2>Meetings</h2><span>{recordCount(meetings.length)}</span></div>{meetings.slice(0, 4).map((meeting) => <MeetingRow key={meeting.id} meeting={meeting} workspace={workspace} onClick={() => actions.edit('meeting', meeting)} />)}{!meetings.length && <p>No meetings recorded.</p>}</section>
+      <section className="record-section"><div className="record-section__head"><h2>Notes</h2><span>{recordCount(notes.length)}</span></div>{notes.slice(0, 4).map((note) => <button className="note-row" key={note.id} onClick={() => actions.edit('note', note)}><strong>{note.title}</strong><span>{note.body}</span></button>)}{!notes.length && <p>No notes recorded.</p>}</section>
     </div><aside className="client-detail__side">
       <section className="record-section"><div className="record-section__head"><h2>Details</h2><span>Profile</span></div><dl className="fact-list"><Fact label="Status" value={titleCase(client.status)} /><Fact label="Email" value={client.email} /><Fact label="Phone" value={client.phone} /><Fact label="Website" value={client.website} link /><Fact label="Address" value={address} /></dl></section>
       <section className="record-section"><div className="record-section__head"><h2>Contacts</h2><button className="button button--text" onClick={() => actions.edit('contact', undefined, client.id)}>Add contact</button></div>{contacts.map((contact) => <button className="contact-row" key={contact.id} onClick={() => actions.edit('contact', contact)}><span><strong>{contact.firstName} {contact.lastName}</strong><span>{contact.title || titleCase(contact.role)}{contact.email ? ` · ${contact.email}` : ''}</span></span>{contact.isPrimary && <small>Primary</small>}</button>)}{!contacts.length && <p>No contacts yet.</p>}</section>
-      <section className="record-section"><div className="record-section__head"><h2>Mail</h2><span>{emails.length} records</span></div>{emails.slice(0, 5).map((email) => <button className="email-row" key={email.id} onClick={() => actions.edit('email', email)}><strong>{email.subject}</strong><span>{titleCase(email.status)} · {relativeDate(email.occurredAt)}</span></button>)}{!emails.length && <p>No mail recorded.</p>}</section>
+      <section className="record-section"><div className="record-section__head"><h2>Mail</h2><span>{recordCount(emails.length)}</span></div>{emails.slice(0, 5).map((email) => <button className="email-row" key={email.id} onClick={() => actions.edit('email', email)}><strong>{email.subject}</strong><span>{titleCase(email.status)} · {relativeDate(email.occurredAt)}</span></button>)}{!emails.length && <p>No mail recorded.</p>}</section>
     </aside></div>
   </>
 }

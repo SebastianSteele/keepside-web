@@ -1,28 +1,4 @@
 @font-face {
-  font-family: "Lutoria Serif";
-  src: url("/fonts/LutoriaSerif-Regular.woff2") format("woff2");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 400;
-}
-
-@font-face {
-  font-family: "Lutoria Serif";
-  src: url("/fonts/LutoriaSerif-Semibold.woff2") format("woff2");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 600;
-}
-
-@font-face {
-  font-family: "Lutoria Serif";
-  src: url("/fonts/LutoriaSerif-Bold.woff2") format("woff2");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 700;
-}
-
-@font-face {
   font-family: "Onest";
   src: url("/fonts/Onest-Variable.woff2") format("woff2");
   font-display: swap;
@@ -60,7 +36,7 @@
   --red: #ee706a;
   --green: #62c58b;
   --display: "Onest", system-ui, sans-serif;
-  --editorial: "Lutoria Serif", Georgia, serif;
+  --editorial: "Onest", system-ui, sans-serif;
   --radius-sm: 9px;
   --radius: 14px;
   --radius-lg: 18px;
@@ -239,7 +215,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .rail-row strong { font-size: 12px; font-weight: 620; }
 .rail-row small { margin-top: 3px; color: var(--faint); font-size: 10px; }
 .rail-empty { margin: 0; padding: 18px 2px; color: var(--faint); border-bottom: 1px solid var(--line); font-size: 11px; }
-.recent-clients { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 12px; }
+.recent-clients { display: grid; grid-template-columns: 1fr; gap: 8px; padding-top: 12px; }
 .recent-clients button { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 9px; align-items: center; min-height: 53px; padding: 8px; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-align: left; transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) var(--ease-out); }
 .recent-clients button:hover { background: var(--surface-hover); border-color: var(--line-strong); transform: translateY(-2px); }
 .recent-clients strong, .recent-clients small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -339,6 +315,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .client-detail-page { max-width: 1370px; }
 .back-link { display: inline-flex !important; margin-bottom: 25px; }
 .client-detail__head { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 18px; align-items: center; padding-bottom: 26px; background: var(--metal-line) bottom / 100% 1px no-repeat; }
+.client-detail__head > div { min-width: 0; }
 .client-detail__head .monogram { width: 64px; height: 64px; font-size: 15px; }
 .client-detail__head h1 { margin: 0; font-size: clamp(36px, 4vw, 52px); font-weight: 680; letter-spacing: -.045em; line-height: 1.02; }
 .client-detail__head p { margin: 10px 0 0; color: var(--muted); font-family: var(--editorial); font-size: 15px; }
@@ -383,6 +360,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .modal__header p { max-width: 580px; margin: 10px 0 0; color: var(--muted); font-family: var(--editorial); font-size: 14px; line-height: 1.45; }
 .form { padding: 24px 26px 27px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 15px; }
+fieldset.form-grid { min-width: 0; margin: 0; padding: 0; border: 0; }
 .field { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
 .field--span { grid-column: 1 / -1; }
 .field > span { color: var(--muted); font-size: 10.5px; font-weight: 620; }
@@ -394,6 +372,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .field input:focus, .field textarea:focus, .field select:focus { background: #0e1013; border-color: #6b7079; box-shadow: 0 0 0 3px rgba(255,255,255,.035); }
 .form__section { grid-column: 1 / -1; margin: 8px 0 -2px; padding-top: 15px; color: var(--ink); border-top: 1px solid var(--line); font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
 .form__actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 27px; padding-top: 18px; border-top: 1px solid var(--line); }
+.email-editor .form__actions { position: sticky; z-index: 2; bottom: -27px; margin: 27px -26px -27px; padding: 16px 26px 18px; background: rgba(21,23,27,.96); box-shadow: 0 -14px 30px rgba(9,10,12,.24); backdrop-filter: blur(14px); }
 .form__spacer { flex: 1; }
 .delete-action { margin-right: auto; }
 .checkbox { display: flex; min-height: 40px; align-items: center; flex-direction: row; gap: 9px; }
@@ -521,7 +500,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .client-directory-row { grid-template-columns: 37px minmax(0, 1fr) 42px 15px; gap: 10px; }
   .client-directory-row .status { display: none; }
   .client-directory-row__open { grid-column: 3; }
-  .client-detail__head h1 { font-size: 37px; }
+  .client-detail__head { grid-template-columns: 58px minmax(0, 1fr); gap: 14px; }
+  .client-detail__head h1 { overflow-wrap: anywhere; font-size: 32px; letter-spacing: -.035em; }
+  .client-detail__actions { flex-wrap: wrap; }
+  .client-detail-page, .client-detail__head, .quick-actions, .client-detail__grid { width: 100%; max-width: calc(100vw - 32px); }
   .contact-directory-row { grid-template-columns: 38px minmax(0, 1fr) 58px; gap: 10px; }
   .contact-directory-row__client { display: none; }
   .form-grid { grid-template-columns: 1fr; }
@@ -531,6 +513,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .modal__header { padding: 21px 17px 17px; }
   .form { padding: 20px 17px 24px; }
   .form__actions { flex-wrap: wrap; }
+  .email-editor .form__actions { bottom: -24px; margin-right: -17px; margin-bottom: -24px; margin-left: -17px; padding-right: 17px; padding-left: 17px; }
   .form__spacer { display: none; }
   .delete-action { margin-right: auto; }
   .settings-grid { grid-template-columns: 1fr; }
