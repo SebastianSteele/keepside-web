@@ -228,13 +228,13 @@ export function parseWorkspace(value: unknown): WorkspaceData | null {
     || !hasUniqueIds(activities)) return null
 
   const clientIds = new Set(clients.map(({ id }) => id))
-  const contactIds = new Set(contacts.map(({ id }) => id))
-  const workItemIds = new Set(workItems.map(({ id }) => id))
+  const contactClients = new Map(contacts.map(({ id, clientId }) => [id, clientId]))
+  const workItemClients = new Map(workItems.map(({ id, clientId }) => [id, clientId]))
   if (contacts.some(({ clientId }) => !clientIds.has(clientId))
     || workItems.some(({ clientId }) => !clientIds.has(clientId))
-    || meetings.some(({ clientId, contactIds: ids }) => !clientIds.has(clientId) || ids.some((id) => !contactIds.has(id)))
-    || notes.some(({ clientId, workItemId }) => !clientIds.has(clientId) || workItemId !== undefined && !workItemIds.has(workItemId))
-    || emails.some(({ clientId, contactId }) => !clientIds.has(clientId) || contactId !== undefined && !contactIds.has(contactId))
+    || meetings.some(({ clientId, contactIds: ids }) => !clientIds.has(clientId) || ids.some((id) => contactClients.get(id) !== clientId))
+    || notes.some(({ clientId, workItemId }) => !clientIds.has(clientId) || workItemId !== undefined && workItemClients.get(workItemId) !== clientId)
+    || emails.some(({ clientId, contactId }) => !clientIds.has(clientId) || contactId !== undefined && contactClients.get(contactId) !== clientId)
     || activities.some(({ clientId }) => clientId !== undefined && !clientIds.has(clientId))) return null
 
   return {

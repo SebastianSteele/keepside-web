@@ -2,7 +2,7 @@
   "name": "keepside-web",
   "private": true,
   "version": "0.1.0",
-  "description": "A private, local-first client relationship ledger for the web.",
+  "description": "A local-first client relationship ledger for the web.",
   "license": "MIT",
   "type": "module",
   "engines": {

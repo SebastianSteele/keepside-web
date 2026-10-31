@@ -133,6 +133,16 @@ describe('workspace domain', () => {
     expect(parseWorkspace({ ...workspace, settings: { ...workspace.settings, locale: 'en_US' } })).toBeNull()
   })
 
+  it('rejects record links that cross client boundaries', () => {
+    const workspace = createSampleWorkspace(new Date(t0))
+    const otherContactId = workspace.contacts.find(({ clientId }) => clientId === 'client-consultant')!.id
+    const otherWorkItemId = workspace.workItems.find(({ clientId }) => clientId === 'client-consultant')!.id
+
+    expect(parseWorkspace({ ...workspace, meetings: workspace.meetings.map((meeting, index) => index === 0 ? { ...meeting, contactIds: [otherContactId] } : meeting) })).toBeNull()
+    expect(parseWorkspace({ ...workspace, notes: workspace.notes.map((note, index) => index === 0 ? { ...note, workItemId: otherWorkItemId } : note) })).toBeNull()
+    expect(parseWorkspace({ ...workspace, emails: workspace.emails.map((email, index) => index === 0 ? { ...email, contactId: otherContactId } : email) })).toBeNull()
+  })
+
   it('reports browser storage failures', () => {
     const storage: WorkspaceStorage = {
       getItem: () => null,

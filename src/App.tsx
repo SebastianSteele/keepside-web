@@ -36,6 +36,7 @@ import {
   upsertNote,
   upsertWorkItem,
 } from './domain/workspace'
+import { MailRelayClient } from './infrastructure/serverClients'
 import { EditableRecord, EditorTarget, RecordEditor, SettingsEditor } from './screens/Editors'
 import {
   ClientsScreen,
@@ -50,13 +51,23 @@ import {
 } from './screens/Screens'
 
 const recordId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`
+const connectedApiUrl = import.meta.env.VITE_KEEPSIDE_API_URL?.trim()
+const mailRelay = connectedApiUrl ? new MailRelayClient(connectedApiUrl) : undefined
+const demoMode = import.meta.env.VITE_KEEPSIDE_DEMO === 'true'
+const demoParams = demoMode ? new URLSearchParams(window.location.search) : undefined
+const sectionValues: Section[] = ['today', 'clients', 'work', 'meetings', 'mail', 'notes', 'contacts']
+const demoSection = sectionValues.find((value) => value === demoParams?.get('section')) ?? 'today'
 
 export default function App() {
-  const [loaded] = useState(loadWorkspaceResult)
+  const [loaded] = useState(() => demoMode ? { workspace: createSampleWorkspace() } : loadWorkspaceResult())
   const [workspace, setWorkspace] = useState<WorkspaceData>(loaded.workspace)
-  const [section, setSection] = useState<Section>('today')
-  const [selectedClientId, setSelectedClientId] = useState<string>()
-  const [editor, setEditor] = useState<EditorTarget>()
+  const [section, setSection] = useState<Section>(demoSection)
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(() => demoParams?.get('client') ?? undefined)
+  const [editor, setEditor] = useState<EditorTarget | undefined>(() => {
+    const emailId = demoParams?.get('compose')
+    const record = emailId ? loaded.workspace.emails.find(({ id }) => id === emailId) : undefined
+    return record ? { kind: 'email', record } : undefined
+  })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -71,6 +82,7 @@ export default function App() {
   }, [workspace])
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true); return }
       if (!event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || ['INPUT', 'TEXTAREA', 'SELECT'].includes((event.target as HTMLElement).tagName)) return
       const kind = ({ n: 'client', t: 'work', m: 'meeting', e: 'email', d: 'note' } as Partial<Record<string, RecordKind>>)[event.key.toLowerCase()]
@@ -117,7 +129,7 @@ export default function App() {
     {section === 'notes' && <NotesScreen workspace={workspace} actions={actions} />}
     {section === 'contacts' && <ContactsScreen workspace={workspace} actions={actions} />}
     {searchOpen && <CommandSearch workspace={workspace} onClose={() => setSearchOpen(false)} onSection={(next) => { if (next === 'clients') setSelectedClientId(undefined); setSection(next) }} onClient={actions.openClient} onEdit={(kind, record) => setEditor({ kind, record })} />}
-    {editor && <RecordEditor key={`${editor.kind}-${editor.record?.id ?? 'new'}`} target={editor} workspace={workspace} onClose={() => setEditor(undefined)} onSave={saveRecord} onDelete={removeRecord} />}
+    {editor && <RecordEditor key={`${editor.kind}-${editor.record?.id ?? 'new'}`} target={editor} workspace={workspace} mailRelay={mailRelay} onClose={() => setEditor(undefined)} onSave={saveRecord} onDelete={removeRecord} />}
     {settingsOpen && <SettingsEditor workspace={workspace} onClose={() => setSettingsOpen(false)} onSettings={(settings) => { setWorkspace((current) => updateWorkspaceSettings(current, settings)); setSettingsOpen(false) }} onImport={(serialized) => { const imported = importWorkspace(serialized); if (!imported) return false; setWorkspace(imported); setSelectedClientId(undefined); return true }} onSample={() => { if (window.confirm('Replace this workspace with sample data?')) { setWorkspace(createSampleWorkspace()); setSelectedClientId(undefined); setSettingsOpen(false) } }} onClear={() => { setWorkspace(createEmptyWorkspace()); setSelectedClientId(undefined); setSettingsOpen(false) }} />}
   </Shell>{loadError && <div className="storage-alert" role="alert">The saved workspace could not be read, so Keepside left it untouched. Import a valid backup before making changes.</div>}{storageError && <div className="storage-alert" role="alert">Keepside cannot save in this browser right now. Export a workspace copy from Settings before closing this tab.</div>}</>
 }

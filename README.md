@@ -1,37 +1,92 @@
-# Keepside for the web
+# Keepside
 
-Keepside is a private client relationship ledger that runs entirely in the browser. It keeps client profiles, contacts, work, meetings, notes, and email history together without an account, hosted database, automation system, or tracking layer.
+**Client work without the CRM ceremony.**
 
-This is the cross-platform React edition. The separate [native macOS edition](https://github.com/SebastianSteele/keepside) remains its own project.
+Keepside puts the people, promises, notes, meetings, and email around a client in one place. It is built for independent professionals and small practices that need a clear record of the relationship, not a sales machine.
 
-## What it handles
+This web edition is early software. Local mode is ready to use. The connected database and outbound mail boundary is available for server implementers and remains experimental.
 
-- Client and organization records
-- Primary and supporting contacts
-- Projects, tasks, services, and follow-ups
-- Meeting agendas and outcomes
-- Pinned client notes
-- Sent and received email history
-- Email composition through the default mail app
-- Portable JSON import and export
-- Responsive desktop and mobile layouts
+![Keepside dashboard showing upcoming client work, notes, mail, and the client rail](docs/screenshots/today.png)
 
-## Privacy model
+## One client record, everything connected
 
-Keepside stores one validated workspace in browser `localStorage`. There is no server component. Nothing is uploaded by the application.
+A client record holds the work that is still open, conversations on the calendar, people involved, useful notes, and email history. Every edit goes back through the same validated workspace document.
 
-Browser storage can be cleared by the user, the browser, or device-management policies. Export the workspace regularly if the data matters. Keepside is not a replacement for an encrypted records system when handling regulated or highly sensitive information.
+![Willow and Pine client record with tasks, meetings, notes, contacts, details, and mail](docs/screenshots/client.png)
 
-## Run locally
+## Email stays with the relationship
+
+Keepside can open a draft in the computer's default mail app. A self-hosted build can also enable the outbound relay client. When **Send through relay** is used, Keepside marks the record Sent only after that relay returns an accepted receipt.
+
+![Keepside email editor with a client draft and its linked record details](docs/screenshots/mail.png)
+
+## What it keeps together
+
+- clients and organizations
+- primary and supporting contacts
+- projects, tasks, services, and follow-ups
+- meeting agendas and outcomes
+- pinned notes and longer client context
+- sent, received, and draft email records
+- one portable JSON export of the complete workspace
+
+There are no pipelines, lead scores, automation builders, AI summaries, or decorative performance widgets.
+
+## Two clear modes
+
+| | Local mode | Connected-mode framework |
+| --- | --- | --- |
+| Status | Default and usable now | Experimental integration boundary |
+| Storage | One validated document in browser storage | The same document in your PostgreSQL service |
+| Account | None | Supplied by your server |
+| Email | Opens the default mail app | Optional authenticated outbound relay |
+| Secrets | None | Server only, never in a `VITE_` variable |
+| Conflicts | One browser profile | Conditional saves with `ETag` and `If-Match` |
+
+Local mode makes no workspace or mail network request. Browser storage can still be cleared, so export a backup if the records matter.
+
+Connected mode is not a hosted Keepside service. This repository supplies tested browser clients, an [OpenAPI contract](docs/openapi.yaml), a compact [PostgreSQL schema](docs/postgres.sql), and the [self-hosting security boundary](docs/SELF_HOSTING.md). You provide the authenticated server and mail-provider account.
+
+## Run it locally
 
 Requires Node.js 20.19 or newer.
 
 ```bash
+git clone https://github.com/SebastianSteele/keepside-web.git
+cd keepside-web
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`, then choose **Use sample workspace** or add a first client.
+
+## Configure a connected API
+
+The only browser setting is a public URL:
+
+```bash
+cp .env.example .env.local
+```
+
+```dotenv
+VITE_KEEPSIDE_API_URL=/api
+```
+
+That enables the outbound relay action in the email editor. `WorkspaceApiClient` is the storage seam for a server-backed build, but Keepside does not switch a local workspace to remote storage automatically. A real product must ask whether to upload the local workspace or open the server copy, then use one store only.
+
+Read [Connected mode reference](docs/SELF_HOSTING.md) before implementing the server. It covers owner isolation, revision conflicts, session cookies, origin checks, mail idempotency, rate limits, provider failures, and backups.
+
+## Project shape
+
+- `src/domain/types.ts` owns the record model.
+- `src/domain/workspace.ts` owns validation and every persistence rule.
+- `src/domain/sample.ts` owns the reproducible demonstration workspace.
+- `src/infrastructure/serverClients.ts` owns the optional server transport.
+- `src/screens` renders data and returns complete records. It does not persist them.
+
+The app uses React, TypeScript, Vite, and browser APIs. It has no router, state library, component kit, icon dependency, date package, or styling framework.
+
+See [Architecture](ARCHITECTURE.md) for the full ownership boundary.
 
 ## Verify a change
 
@@ -39,31 +94,19 @@ Open `http://localhost:5173`.
 npm run typecheck
 npm test
 npm run build
-npm audit
+npm audit --audit-level=high
 ```
 
-## Architecture
+The current screenshot build was checked in Chrome 150 on macOS at a 1440-pixel desktop width. Responsive layouts are included; reproducible browser reports are welcome.
 
-The application has one canonical `WorkspaceData` document. Domain rules, validation, persistence, import, export, cascade deletion, and sorting live in `src/domain/workspace.ts`. React screens receive that workspace and route all mutations back through the domain layer.
+## Data care
 
-No state library, router, component kit, icon package, date package, or styling framework is used. The small dependency surface is deliberate.
+Keepside is not an encrypted records vault. Do not put regulated or highly sensitive material in browser storage without the device protection, retention policy, and backup process your work requires. Never attach a real workspace export to a public issue.
 
-## Design
+Security reports have a [private reporting route](https://github.com/SebastianSteele/keepside-web/security/advisories/new). General contributions are covered in [Contributing](CONTRIBUTING.md) and the [Code of conduct](CODE_OF_CONDUCT.md).
 
-Keepside uses Onest for the dense product interface and the supplied Lutoria Serif family selectively for longer, editorial text. Its carbon ledger layout, chrome K lockup, heated-metal accent, and persistent client rail form the visual identity. Source and license details are in the [font credits](public/fonts/README.md).
+## Editions and license
 
-Lutoria is an optional local font and is not included in public commits without confirmed redistribution rights. A clean clone falls back to Georgia for editorial text while keeping Onest for the full product interface. Licensed owners can place the three WOFF2 files named in the font credits inside `public/fonts/`.
+This is the cross-platform React edition. The separate [native macOS edition](https://github.com/SebastianSteele/keepside) remains its own project.
 
-## Browser support
-
-Keepside targets current evergreen browsers with support for ES2020, `localStorage`, and `crypto.randomUUID`. The application includes a fallback identifier generator for older compatible browsers.
-
-## Current limitations
-
-- Data is local to one browser profile and does not sync between devices.
-- Email composition opens the default mail application; Keepside does not connect to an inbox or confirm delivery.
-- Browser storage can be cleared, so important workspaces should be exported regularly.
-
-## License
-
-[MIT](LICENSE)
+Keepside is released under the [MIT License](LICENSE). The bundled Onest typeface uses the SIL Open Font License; details are in the [font credits](public/fonts/README.md).

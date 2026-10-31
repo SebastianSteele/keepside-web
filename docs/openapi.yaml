@@ -1,0 +1,354 @@
+openapi: 3.1.2
+info:
+  title: Keepside connected service
+  version: 0.1.0
+  summary: Optional workspace transport and outbound email relay contract
+  description: |
+    This contract is the boundary for experimental connected mode. Local mode
+    does not call these endpoints. WorkspaceData and its validator in
+    src/domain are the canonical record model. The Workspace component below is
+    a transport envelope. Server implementations must reuse or port
+    parseWorkspace and its contract tests; generated OpenAPI validation alone is
+    not sufficient.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+paths:
+  /v1/workspace:
+    get:
+      operationId: loadWorkspace
+      summary: Load the authenticated owner's workspace
+      responses:
+        '200':
+          description: Current validated workspace
+          headers:
+            ETag:
+              description: Opaque workspace revision used for conditional saves
+              schema:
+                type: string
+              example: '"revision-7"'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: The authenticated owner has no connected workspace
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      operationId: createWorkspace
+      summary: Create the authenticated owner's first connected workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workspace'
+      responses:
+        '201':
+          description: Workspace created after full validation
+          headers:
+            ETag:
+              description: Initial opaque workspace revision
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A connected workspace already exists for this owner
+        '413':
+          description: Workspace document exceeds the server limit
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      operationId: saveWorkspace
+      summary: Replace the authenticated owner's workspace
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: ETag returned by the last successful load or save
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workspace'
+      responses:
+        '200':
+          description: Saved and revalidated workspace
+          headers:
+            ETag:
+              description: New opaque workspace revision
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '412':
+          description: The supplied ETag is stale; no data was overwritten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Workspace document exceeds the server limit
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /v1/mail/send:
+    post:
+      operationId: sendEmail
+      summary: Submit one outgoing email to the configured relay
+      description: |
+        The server must authenticate the owner, validate the message, enforce a
+        server-controlled sender, reserve the idempotency key, and persist only
+        delivery metadata. A provider acceptance is not proof of final delivery.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable workspace and email identifier
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 300
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelayRequest'
+      responses:
+        '202':
+          description: The mail provider accepted the message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelayReceipt'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The idempotency key is already reserved for different content
+        '413':
+          description: Message exceeds the relay limit
+        '422':
+          description: Message or recipients failed validation
+        '429':
+          description: Per-owner relay limit exceeded
+        '502':
+          description: Relay or provider state could not be confirmed; do not retry automatically
+        '503':
+          description: Delivery state is uncertain; do not retry automatically
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: keepside_session
+      description: Secure, HttpOnly, SameSite session scoped to the API origin
+  responses:
+    InvalidRequest:
+      description: Request could not be validated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: A valid owner session is required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: The service could not complete the request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Workspace:
+      type: object
+      description: |
+        Complete WorkspaceData transport envelope. Servers must validate the full
+        document with the canonical parseWorkspace rules before persistence.
+      required:
+        - schemaVersion
+        - id
+        - name
+        - settings
+        - clients
+        - contacts
+        - workItems
+        - meetings
+        - notes
+        - emails
+        - activities
+        - createdAt
+        - updatedAt
+      properties:
+        schemaVersion:
+          const: 1
+        id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+        settings:
+          type: object
+        clients:
+          type: array
+          items:
+            type: object
+        contacts:
+          type: array
+          items:
+            type: object
+        workItems:
+          type: array
+          items:
+            type: object
+        meetings:
+          type: array
+          items:
+            type: object
+        notes:
+          type: array
+          items:
+            type: object
+        emails:
+          type: array
+          items:
+            type: object
+        activities:
+          type: array
+          items:
+            type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RelayRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - workspaceId
+        - email
+      properties:
+        workspaceId:
+          type: string
+          minLength: 1
+        email:
+          $ref: '#/components/schemas/OutgoingEmail'
+    OutgoingEmail:
+      type: object
+      additionalProperties: false
+      description: To and CC combined must contain no more than 20 recipients
+      x-keepside-total-recipient-limit: 20
+      required:
+        - id
+        - clientId
+        - direction
+        - status
+        - from
+        - to
+        - cc
+        - subject
+        - body
+        - occurredAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        clientId:
+          type: string
+        contactId:
+          type: string
+        direction:
+          const: outgoing
+        status:
+          const: draft
+        from:
+          type: string
+          format: email
+          description: Local record value; the server must ignore it and use its configured sender
+        to:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: To and CC combined must contain no more than 20 recipients
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          maxItems: 20
+          description: To and CC combined must contain no more than 20 recipients
+          items:
+            type: string
+            format: email
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+          maxLength: 100000
+        occurredAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RelayReceipt:
+      type: object
+      additionalProperties: false
+      required: [status, providerMessageId, acceptedAt, from]
+      properties:
+        status:
+          const: accepted
+        providerMessageId:
+          type: string
+          minLength: 1
+        acceptedAt:
+          type: string
+          format: date-time
+        from:
+          type: string
+          format: email
+          description: Effective server-controlled sender mailbox used by the provider
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string

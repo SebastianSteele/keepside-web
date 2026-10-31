@@ -1,0 +1,30 @@
+name: Conduct report
+description: Flag a public project interaction for maintainer review.
+title: "[Conduct] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form creates a public issue. Link to the interaction, but do not include private client information, contact details, or other sensitive material. For threats, doxxing, or private evidence, use GitHub's abuse reporting route instead.
+  - type: input
+    id: location
+    attributes:
+      label: Interaction
+      description: Link to the issue, pull request, comment, or other public project interaction.
+      placeholder: https://github.com/SebastianSteele/keepside-web/...
+    validations:
+      required: true
+  - type: textarea
+    id: concern
+    attributes:
+      label: What needs review?
+      description: Give the maintainer enough context to locate the concern without repeating harmful or private content.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Public report
+      options:
+        - label: I understand this report is public and contains no private client data or sensitive evidence.
+          required: true

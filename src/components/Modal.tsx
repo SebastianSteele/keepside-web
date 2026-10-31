@@ -8,18 +8,19 @@ interface ModalProps {
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  dismissible?: boolean
 }
 
-export function Modal({ title, subtitle, children, onClose, wide }: ModalProps) {
+export function Modal({ title, subtitle, children, onClose, wide, dismissible = true }: ModalProps) {
   const dialogRef = useRef<HTMLElement>(null)
-  useDialogFocus(dialogRef, onClose)
+  useDialogFocus(dialogRef, dismissible ? onClose : undefined)
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section ref={dialogRef} className={`modal${wide ? ' modal--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => dismissible && event.target === event.currentTarget && onClose()}>
+      <section ref={dialogRef} className={`modal${wide ? ' modal--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1}>
         <header className="modal__header">
           <div><h2 id="modal-title">{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
+          <button type="button" className="icon-button" disabled={!dismissible} onClick={onClose} aria-label="Close"><Icon name="close" /></button>
         </header>
         {children}
       </section>

@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible problem in Keepside
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Do not attach a real workspace export. Reproduce the issue with sample data.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 19.0, Chrome 140, Firefox 142
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Keepside version or commit
+      placeholder: v0.1.0 or a commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Start from a fresh workspace or the built-in sample workspace.
+      placeholder: |
+        1. Load the sample workspace
+        2. Open ...
+        3. Choose ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Storage mode
+      options:
+        - Local mode
+        - Connected-mode client or custom server
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Safe supporting material
+      description: Add console errors or screenshots only after removing client data and credentials.
